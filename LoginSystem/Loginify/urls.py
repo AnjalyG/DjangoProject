@@ -6,4 +6,5 @@ app_name = "Loginify"
 urlpatterns = [
     path("", views.hello_world, name="hello"),
     path("login/", views.login_view, name="login"),
+    path("signup/", views.signup_view, name="signup"),
 ]

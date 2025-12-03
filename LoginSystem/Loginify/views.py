@@ -1,28 +1,51 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from django.contrib.auth import authenticate, login
-from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+
+from .models import UserDetails
 
 # Test view 
 def hello_world(request):
     return HttpResponse("Hello, world!")
 
-@csrf_exempt
-def login_view(request):
+def signup_view(request):
+    """Handle user registration."""
     if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return HttpResponse("Login successful")
-        return HttpResponse("Invalid credentials", status=401)
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
 
-    # Basic HTML form
-    return HttpResponse(
-        "<form method='post'>"
-        "Username: <input name='username'><br>"
-        "Password: <input type='password' name='password'><br>"
-        "<input type='submit' value='Login'>"
-        "</form>"
-    )
+        # basic validation
+        if not username or not email or not password:
+            return render(request, "Loginify/signup.html", {"error": "All fields are required."})
+
+        # ensure email is unique
+        if UserDetails.objects.filter(email=email).exists():
+            return render(request, "Loginify/signup.html", {"error": "Email already registered."})
+
+        # create user
+        user = UserDetails.objects.create(username=username, email=email, password=password)
+
+        # render a confirmation page that redirects to login
+        return render(request, "Loginify/signup_confirmation.html", {"username": user.username, "email": user.email})
+
+    return render(request, "Loginify/signup.html")
+
+def login_view(request):
+    """Handle login using email and password against UserDetails model."""
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+
+        try:
+            user = UserDetails.objects.get(email=email)
+        except UserDetails.DoesNotExist:
+            return render(request, "Loginify/login.html", {"error": "Invalid credentials."})
+
+        if user.password == password:
+            # success
+            return render(request, "Loginify/login_success.html", {"username": user.username, "email": user.email})
+        # Login error
+        return render(request, "Loginify/login.html", {"error": "Invalid credentials."})
+
+    return render(request, "Loginify/login.html")
